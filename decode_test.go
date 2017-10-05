@@ -6,6 +6,26 @@ import (
 	"testing"
 )
 
+func TestDecode_string(t *testing.T) {
+	r := strings.NewReader("3:foo")
+	var v []byte
+	if err := NewDecoder(r).Decode(&v); err != nil {
+		t.Fatal(err)
+	} else if bytes.Compare(v, []byte("foo")) != 0 {
+		t.Error("decoded wrong value for string")
+	}
+}
+
+func TestDecode_string_empty(t *testing.T) {
+	r := strings.NewReader("0:")
+	var v []byte
+	if err := NewDecoder(r).Decode(&v); err != nil {
+		t.Fatal(err)
+	} else if bytes.Compare(v, []byte{}) != 0 {
+		t.Error("decoded wrong value for string")
+	}
+}
+
 func TestDecode_integer_zero(t *testing.T) {
 	r := strings.NewReader("i0e")
 	var v int
@@ -56,26 +76,6 @@ func TestDecode_integer_negten(t *testing.T) {
 	}
 }
 
-func TestDecode_string(t *testing.T) {
-	r := strings.NewReader("3:foo")
-	var v []byte
-	if err := NewDecoder(r).Decode(&v); err != nil {
-		t.Fatal(err)
-	} else if bytes.Compare(v, []byte("foo")) != 0 {
-		t.Error("decoded wrong value for string")
-	}
-}
-
-func TestDecode_string_empty(t *testing.T) {
-	r := strings.NewReader("0:")
-	var v []byte
-	if err := NewDecoder(r).Decode(&v); err != nil {
-		t.Fatal(err)
-	} else if bytes.Compare(v, []byte{}) != 0 {
-		t.Error("decoded wrong value for string")
-	}
-}
-
 func TestDecode_list(t *testing.T) {
 	r := strings.NewReader("li-10ei-1ei0ei1ei10ee")
 	var v []int
@@ -102,13 +102,17 @@ func TestDecode_list_empty(t *testing.T) {
 }
 
 func TestDecode_struct(t *testing.T) {
-	r := strings.NewReader("d4:fizzi3e4:buzzi5ee")
+	r := strings.NewReader("d4:fizzi3e4:fuzzi4e4:buzzi5ee")
 	var v struct {
+		Bizz int
 		Fizz int `bencode:"fizz"`
 		Buzz int `bencode:"buzz"`
 	}
 	if err := NewDecoder(r).Decode(&v); err != nil {
 		t.Fatal(err)
+	}
+	if v.Bizz != 0 {
+		t.Error("decoded struct field without bencode tag")
 	} else if v.Fizz != 3 || v.Buzz != 5 {
 		t.Error("wrong value(s) in struct")
 	}

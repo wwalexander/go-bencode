@@ -9,9 +9,9 @@ import (
 	"strconv"
 )
 
-// A Decoder reads and decodes bencoded values from an input stream.
+// A Decoder reads andec.decodes bencoded values from an input stream.
 type Decoder struct {
-	r *bufio.Reader
+	b *bufio.Reader
 }
 
 // NewDecoder returns a new decoder that reads from r.
@@ -19,11 +19,12 @@ type Decoder struct {
 // The decoder introduces its own buffering and may read data from r beyond the
 // bencoded values requested.
 func NewDecoder(r io.Reader) *Decoder {
-	return &Decoder{bufio.NewReader(r)}
+	b := bufio.NewReader(r)
+	return &Decoder{b}
 }
 
-func (d *Decoder) decodeInteger(delim byte) (int, error) {
-	s, err := d.r.ReadBytes(delim)
+func (dec *Decoder) decodeInteger(delim byte) (int, error) {
+	s, err := dec.b.ReadBytes(delim)
 	if err != nil {
 		return 0, err
 	}
@@ -35,15 +36,15 @@ func (d *Decoder) decodeInteger(delim byte) (int, error) {
 	return n, nil
 }
 
-func (d *Decoder) decodeString() ([]byte, error) {
-	length, err := d.decodeInteger(':')
+func (dec *Decoder) decodeString() ([]byte, error) {
+	length, err := dec.decodeInteger(':')
 	if err != nil {
 		return nil, err
 	}
 	s := make([]byte, length)
 	length = 0
 	for length < len(s) {
-		n, err := d.r.Read(s[length:])
+		n, err := dec.b.Read(s[length:])
 		if err != nil {
 			return nil, err
 		}
@@ -52,15 +53,15 @@ func (d *Decoder) decodeString() ([]byte, error) {
 	return s, nil
 }
 
-func (d *Decoder) next(c byte) (bool, error) {
-	buf, err := d.r.Peek(1)
+func (dec *Decoder) next(c byte) (bool, error) {
+	buf, err := dec.b.Peek(1)
 	if err != nil {
 		return false, err
 	}
 	if buf[0] != c {
 		return false, nil
 	}
-	if _, err := d.r.ReadByte(); err != nil {
+	if _, err := dec.b.ReadByte(); err != nil {
 		return true, err
 	}
 	return true, nil
@@ -70,8 +71,8 @@ func (d *Decoder) next(c byte) (bool, error) {
 // value pointed to by v.
 //
 // See the documentation for Unmarshal for details about the conversion of
-// bencode into a Go value.
-func (d *Decoder) Decode(v interface{}) error {
+// a bencoded value into a Go value.
+func (dec *Decoder) Decode(v interface{}) error {
 	val := reflect.ValueOf(v)
 	if val.Kind() != reflect.Ptr {
 		return errors.New("non-pointer type")
@@ -81,24 +82,24 @@ func (d *Decoder) Decode(v interface{}) error {
 	kind := typ.Kind()
 	switch {
 	case kind == reflect.Slice && typ.Elem().Kind() == reflect.Uint8:
-		s, err := d.decodeString()
+		s, err := dec.decodeString()
 		if err != nil {
 			return err
 		}
 		val.Set(reflect.ValueOf(s))
 	case kind == reflect.Int:
-		if ok, err := d.next('i'); err != nil {
+		if ok, err := dec.next('i'); err != nil {
 			return err
 		} else if !ok {
 			return errors.New("cannot unmarshal into Go value of type int")
 		}
-		n, err := d.decodeInteger('e')
+		n, err := dec.decodeInteger('e')
 		if err != nil {
 			return err
 		}
 		val.Set(reflect.ValueOf(n))
 	case kind == reflect.Slice:
-		if ok, err := d.next('l'); err != nil {
+		if ok, err := dec.next('l'); err != nil {
 			return err
 		} else if !ok {
 			return errors.New("cannot unmarshal into Go slice")
@@ -108,19 +109,19 @@ func (d *Decoder) Decode(v interface{}) error {
 		}
 		etyp := typ.Elem()
 		for {
-			if done, err := d.next('e'); err != nil {
+			if done, err := dec.next('e'); err != nil {
 				return err
 			} else if done {
 				break
 			}
 			elem := reflect.New(etyp)
-			if err := d.Decode(elem.Interface()); err != nil {
+			if err := dec.Decode(elem.Interface()); err != nil {
 				return err
 			}
 			val.Set(reflect.Append(val, elem.Elem()))
 		}
 	case kind == reflect.Struct:
-		if ok, err := d.next('d'); err != nil {
+		if ok, err := dec.next('d'); err != nil {
 			return err
 		} else if !ok {
 			return errors.New("cannot unmarshal into Go struct")
@@ -128,46 +129,48 @@ func (d *Decoder) Decode(v interface{}) error {
 		fields := make(map[string]reflect.Value)
 		for i := 0; i < typ.NumField(); i++ {
 			field := typ.Field(i)
-			name := field.Tag.Get("bencode")
-			if name == "" {
+			name, ok := field.Tag.Lookup("bencode")
+			if !ok {
 				continue
 			}
 			fields[name] = val.Field(i)
 		}
 		for {
-			if done, err := d.next('e'); err != nil {
+			if done, err := dec.next('e'); err != nil {
 				return err
 			} else if done {
 				break
 			}
-			key, err := d.decodeString()
+			key, err := dec.decodeString()
 			if err != nil {
 				return err
 			}
 			field, ok := fields[string(key)]
 			if !ok {
-				if err := d.discard(); err != nil {
+				if err := dec.discard(); err != nil {
 					return err
 				}
 				continue
 			}
-			if err := d.Decode(field.Addr().Interface()); err != nil {
+			if err := dec.Decode(field.Addr().Interface()); err != nil {
 				return err
 			}
 		}
+	default:
+		return errors.New("unsupported type")
 	}
 	return nil
 }
 
-func (d *Decoder) discard() error {
-	buf, err := d.r.Peek(1)
+func (dec *Decoder) discard() error {
+	buf, err := dec.b.Peek(1)
 	if err != nil {
 		return err
 	}
 	c := buf[0]
 	switch {
 	case c >= '0' && c <= '9':
-		s, err := d.r.ReadBytes(':')
+		s, err := dec.b.ReadBytes(':')
 		if err != nil {
 			return err
 		}
@@ -176,44 +179,46 @@ func (d *Decoder) discard() error {
 		if err != nil {
 			return err
 		}
-		if _, err := d.r.Discard(n); err != nil {
+		if _, err := dec.b.Discard(n); err != nil {
 			return err
 		}
 	case c == 'i':
-		if _, err := d.r.ReadBytes('e'); err != nil {
+		if _, err := dec.b.ReadBytes('e'); err != nil {
 			return err
 		}
 	case c == 'l':
-		if _, err := d.r.ReadByte(); err != nil {
+		if _, err := dec.b.ReadByte(); err != nil {
 			return err
 		}
 		for {
-			if done, err := d.next('e'); err != nil {
+			if done, err := dec.next('e'); err != nil {
 				return err
 			} else if done {
 				break
 			}
-			if err := d.discard(); err != nil {
+			if err := dec.discard(); err != nil {
 				return err
 			}
 		}
 	case c == 'd':
-		if _, err := d.r.ReadByte(); err != nil {
+		if _, err := dec.b.ReadByte(); err != nil {
 			return err
 		}
 		for {
-			if done, err := d.next('e'); err != nil {
+			if done, err := dec.next('e'); err != nil {
 				return err
 			} else if done {
 				break
 			}
-			if err := d.discard(); err != nil {
+			if err := dec.discard(); err != nil {
 				return err
 			}
-			if err := d.discard(); err != nil {
+			if err := dec.discard(); err != nil {
 				return err
 			}
 		}
+	default:
+		return errors.New("invalid character looking for beginning of value")
 	}
 	return nil
 }
@@ -224,12 +229,12 @@ func (d *Decoder) discard() error {
 // Unmarshal uses the inverse of the encodings that Marshal uses, allocating
 // slices and pointers as necessary, with the following additional rules:
 //
-//
 // To unmarshal bencode into a struct, Unmarshal matches incoming dictionary
 // keys to the key used by Marshal (the struct field tag).
 //
 // To unmarshal a bencoded list into a slice, Unmarshal resets the `
 // zero and then appends each element to the slice.
 func Unmarshal(data []byte, v interface{}) error {
-	return NewDecoder(bytes.NewReader(data)).Decode(&v)
+	r := bytes.NewReader(data)
+	return NewDecoder(r).Decode(v)
 }
