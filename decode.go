@@ -2,16 +2,22 @@ package bencode
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"io"
 	"reflect"
 	"strconv"
 )
 
+// A Decoder reads and decodes bencoded values from an input stream.
 type Decoder struct {
 	r *bufio.Reader
 }
 
+// NewDecoder returns a new decoder that reads from r.
+//
+// The decoder introduces its own buffering and may read data from r beyond the
+// bencoded values requested.
 func NewDecoder(r io.Reader) *Decoder {
 	return &Decoder{bufio.NewReader(r)}
 }
@@ -60,6 +66,11 @@ func (d *Decoder) next(c byte) (bool, error) {
 	return true, nil
 }
 
+// Decode reads the next bencoded value from its input and stores it in the
+// value pointed to by v.
+//
+// See the documentation for Unmarshal for details about the conversion of
+// bencode into a Go value.
 func (d *Decoder) Decode(v interface{}) error {
 	val := reflect.ValueOf(v)
 	if val.Kind() != reflect.Ptr {
@@ -79,7 +90,7 @@ func (d *Decoder) Decode(v interface{}) error {
 		if ok, err := d.next('i'); err != nil {
 			return err
 		} else if !ok {
-			return errors.New("invalid prefix for int")
+			return errors.New("cannot unmarshal into Go value of type int")
 		}
 		n, err := d.decodeInteger('e')
 		if err != nil {
@@ -90,7 +101,10 @@ func (d *Decoder) Decode(v interface{}) error {
 		if ok, err := d.next('l'); err != nil {
 			return err
 		} else if !ok {
-			return errors.New("invalid prefix for list")
+			return errors.New("cannot unmarshal into Go slice")
+		}
+		if val.Len() > 0 {
+			val.Set(reflect.Zero(typ))
 		}
 		etyp := typ.Elem()
 		for {
@@ -109,7 +123,7 @@ func (d *Decoder) Decode(v interface{}) error {
 		if ok, err := d.next('d'); err != nil {
 			return err
 		} else if !ok {
-			return errors.New("invalid prefix for dictionary")
+			return errors.New("cannot unmarshal into Go struct")
 		}
 		fields := make(map[string]reflect.Value)
 		for i := 0; i < typ.NumField(); i++ {
@@ -202,4 +216,20 @@ func (d *Decoder) discard() error {
 		}
 	}
 	return nil
+}
+
+// Unmarshal parses the bencoded data and stores the result in the value pointed
+// to by v.
+//
+// Unmarshal uses the inverse of the encodings that Marshal uses, allocating
+// slices and pointers as necessary, with the following additional rules:
+//
+//
+// To unmarshal bencode into a struct, Unmarshal matches incoming dictionary
+// keys to the key used by Marshal (the struct field tag).
+//
+// To unmarshal a bencoded list into a slice, Unmarshal resets the `
+// zero and then appends each element to the slice.
+func Unmarshal(data []byte, v interface{}) error {
+	return NewDecoder(bytes.NewReader(data)).Decode(&v)
 }
