@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"reflect"
+	"sort"
 	"strconv"
 )
 
@@ -71,16 +72,24 @@ func (enc *Encoder) encode(v interface{}) (err error) {
 		if err := enc.b.WriteByte('d'); err != nil {
 			return err
 		}
+		names := make([]string, 0, val.NumField())
+		fields := make(map[string]int)
 		for i := 0; i < val.NumField(); i++ {
 			name, ok := typ.Field(i).Tag.Lookup("bencode")
 			if !ok {
 				continue
 			}
+			names = append(names, name)
+			fields[name] = i
+		}
+		sort.Sort(sort.StringSlice(names))
+		for _, name := range names {
 			if err := enc.Encode([]byte(name)); err != nil {
 				return err
 			}
-			elem := val.Field(i).Interface()
-			if err := enc.Encode(elem); err != nil {
+			i := fields[name]
+			field := val.Field(i).Interface()
+			if err := enc.Encode(field); err != nil {
 				return err
 			}
 		}
