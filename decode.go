@@ -9,7 +9,7 @@ import (
 	"strconv"
 )
 
-// A Decoder reads andec.decodes bencoded values from an input stream.
+// A Decoder reads and decodes bencoded values from an input stream.
 type Decoder struct {
 	b *bufio.Reader
 }
@@ -232,8 +232,8 @@ func (dec *Decoder) discard() error {
 // To unmarshal bencode into a struct, Unmarshal matches incoming dictionary
 // keys to the key used by Marshal (the struct field tag).
 //
-// To unmarshal a bencoded list into a slice, Unmarshal resets the `
-// zero and then appends each element to the slice.
+// To unmarshal a bencoded list into a slice, Unmarshal resets the slice length
+// to zero and then appends each element to the slice.
 func Unmarshal(data []byte, v interface{}) error {
 	r := bytes.NewReader(data)
 	return NewDecoder(r).Decode(v)

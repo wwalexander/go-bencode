@@ -98,7 +98,7 @@ func TestEncode_struct(t *testing.T) {
 	buf := new(bytes.Buffer)
 	if err := NewEncoder(buf).Encode(v); err != nil {
 		t.Fatal(err)
-	} else if buf.String() != "d4:fizzi3e4:buzzi5ee" {
+	} else if buf.String() != "d4:buzzi5e4:fizzi3ee" {
 		t.Error("encoded wrong value for struct")
 	}
 }

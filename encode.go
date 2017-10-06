@@ -103,7 +103,7 @@ func (enc *Encoder) Encode(v interface{}) error {
 
 // Marshal returns the bencoding of v.
 //
-// Marshal traverse the value v recursively.
+// Marshal traverses the value v recursively.
 //
 // Marshal uses the following type-dependent encodings:
 //
@@ -114,7 +114,8 @@ func (enc *Encoder) Encode(v interface{}) error {
 //
 // Struct values encode as bencoded dictionaries. Each exported struct field
 // with a "bencode" key in its tag becomes an entry in the dictionary, using the
-// key as the dictionary key.
+// key as the dictionary key. Dictionaries are encoded with their entries sorted
+// by their keys as raw strings.
 func Marshal(v interface{}) ([]byte, error) {
 	buf := new(bytes.Buffer)
 	if err := NewEncoder(buf).Encode(v); err != nil {
