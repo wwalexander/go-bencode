@@ -117,3 +117,13 @@ func TestDecode_struct(t *testing.T) {
 		t.Error("wrong value(s) in struct")
 	}
 }
+
+func TestUnmarshal(t *testing.T) {
+	data := []byte("3:foo")
+	var s []byte
+	if err := Unmarshal(data, &s); err != nil {
+		t.Fatal(err)
+	} else if bytes.Compare(s, []byte("foo")) != 0 {
+		t.Error("decoded wrong value for string")
+	}
+}

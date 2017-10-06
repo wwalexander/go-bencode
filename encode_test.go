@@ -87,6 +87,7 @@ func TestEncode_list_empty(t *testing.T) {
 }
 
 func TestEncode_struct(t *testing.T) {
+	buf := new(bytes.Buffer)
 	var v = struct {
 		Bizz int
 		Fizz int `bencode:"fizz"`
@@ -95,10 +96,19 @@ func TestEncode_struct(t *testing.T) {
 		Fizz: 3,
 		Buzz: 5,
 	}
-	buf := new(bytes.Buffer)
 	if err := NewEncoder(buf).Encode(v); err != nil {
 		t.Fatal(err)
 	} else if buf.String() != "d4:buzzi5e4:fizzi3ee" {
 		t.Error("encoded wrong value for struct")
+	}
+}
+
+func TestMarshal(t *testing.T) {
+	buf := new(bytes.Buffer)
+	s := []byte("foo")
+	if err := NewEncoder(buf).Encode(s); err != nil {
+		t.Fatal(err)
+	} else if buf.String() != "3:foo" {
+		t.Error("encoded wrong value for string")
 	}
 }
