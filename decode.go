@@ -105,7 +105,7 @@ func (dec *Decoder) Decode(v interface{}) error {
 			return errors.New("cannot unmarshal into Go slice")
 		}
 		if val.Len() > 0 {
-			val.Set(reflect.Zero(typ))
+			val.Set(val.Slice(0, 0))
 		}
 		etyp := typ.Elem()
 		for {
