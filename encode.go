@@ -57,11 +57,31 @@ func (enc *Encoder) encode(v interface{}) (err error) {
 			return err
 		}
 	case kind == reflect.Int:
+		fallthrough
+	case kind == reflect.Int8:
+		fallthrough
+	case kind == reflect.Int16:
+		fallthrough
+	case kind == reflect.Int32:
+		fallthrough
+	case kind == reflect.Int64:
+		fallthrough
+	case kind == reflect.Uint:
+		fallthrough
+	case kind == reflect.Uint8:
+		fallthrough
+	case kind == reflect.Uint16:
+		fallthrough
+	case kind == reflect.Uint64:
+		fallthrough
+	case kind == reflect.Uintptr:
 		if err := enc.b.WriteByte('i'); err != nil {
 			return err
 		}
-		n := strconv.Itoa(v.(int))
-		if _, err := enc.b.Write([]byte(n)); err != nil {
+		typeint := reflect.TypeOf(int(0))
+		n := int(val.Convert(typeint).Int())
+		s := strconv.Itoa(n)
+		if _, err := enc.b.Write([]byte(s)); err != nil {
 			return err
 		}
 		if err := enc.b.WriteByte('e'); err != nil {
@@ -150,7 +170,7 @@ func (enc *Encoder) Encode(v interface{}) error {
 //
 // Marshal uses the following type-dependent encodings:
 //
-// int values encode as bencoded integers.
+// Integer values encode as bencoded integers.
 //
 // String values encode as bencoded strings.
 //
