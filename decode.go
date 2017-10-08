@@ -95,6 +95,26 @@ func (dec *Decoder) Decode(v interface{}) error {
 		}
 		val.Set(reflect.ValueOf(string(s)))
 	case kind == reflect.Int:
+		fallthrough
+	case kind == reflect.Int8:
+		fallthrough
+	case kind == reflect.Int16:
+		fallthrough
+	case kind == reflect.Int32:
+		fallthrough
+	case kind == reflect.Int64:
+		fallthrough
+	case kind == reflect.Uint:
+		fallthrough
+	case kind == reflect.Uint8:
+		fallthrough
+	case kind == reflect.Uint16:
+		fallthrough
+	case kind == reflect.Uint32:
+		fallthrough
+	case kind == reflect.Uint64:
+		fallthrough
+	case kind == reflect.Uintptr:
 		if ok, err := dec.next('i'); err != nil {
 			return err
 		} else if !ok {
@@ -104,7 +124,7 @@ func (dec *Decoder) Decode(v interface{}) error {
 		if err != nil {
 			return err
 		}
-		val.Set(reflect.ValueOf(n))
+		val.Set(reflect.ValueOf(n).Convert(val.Type()))
 	case kind == reflect.Slice:
 		if ok, err := dec.next('l'); err != nil {
 			return err
