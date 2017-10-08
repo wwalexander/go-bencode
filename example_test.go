@@ -47,7 +47,12 @@ func ExampleUnmarshal() {
 
 // This example uses a Decoder to decode a stream of distinct bencoded values.
 func ExampleDecoder() {
-	const bencodeStream = "d4:Name2:Ed4:Text12:Knock knock.ed4:Name3:Sam4:Text12:Who's there?ed4:Name2:Ed7:Go fmt.ed4:Name3:Sam4:Text11:Go fmt who?ed4:Name2:Ed4:Text16:Go fmt yourself!e"
+	const bencodeStream = `` +
+		`d4:Name2:Ed4:Text12:Knock knock.e` +
+		`d4:Name3:Sam4:Text12:Who's there?e` +
+		`d4:Name2:Ed4:Text7:Go fmt.e` +
+		`d4:Name3:Sam4:Text11:Go fmt who?e` +
+		`d4:Name2:Ed4:Text16:Go fmt yourself!e`
 	type Message struct {
 		Name, Text string
 	}

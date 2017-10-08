@@ -7,6 +7,7 @@ import (
 	"io"
 	"reflect"
 	"strconv"
+	"strings"
 )
 
 // A Decoder reads and decodes bencoded values from an input stream.
@@ -136,8 +137,14 @@ func (dec *Decoder) Decode(v interface{}) error {
 		for i := 0; i < typ.NumField(); i++ {
 			field := typ.Field(i)
 			name, ok := field.Tag.Lookup("bencode")
-			if !ok {
-				continue
+			if ok {
+				if name == "-" {
+					continue
+				}
+				strs := strings.Split(name, ",")
+				name = strs[0]
+			} else {
+				name = field.Name
 			}
 			fields[name] = val.Field(i)
 		}
@@ -236,7 +243,8 @@ func (dec *Decoder) discard() error {
 // slices and pointers as necessary, with the following additional rules:
 //
 // To unmarshal bencode into a struct, Unmarshal matches incoming dictionary
-// keys to the key used by Marshal (the struct field tag).
+// keys to the key used by Marshal (either the struct field name or its tag).
+// Unmarshal will only set exported fields of the struct.
 //
 // To unmarshal a bencoded list into a slice, Unmarshal resets the slice length
 // to zero and then appends each element to the slice.
