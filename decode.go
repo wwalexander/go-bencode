@@ -87,6 +87,12 @@ func (dec *Decoder) Decode(v interface{}) error {
 			return err
 		}
 		val.Set(reflect.ValueOf(s))
+	case kind == reflect.String:
+		s, err := dec.decodeString()
+		if err != nil {
+			return err
+		}
+		val.Set(reflect.ValueOf(string(s)))
 	case kind == reflect.Int:
 		if ok, err := dec.next('i'); err != nil {
 			return err

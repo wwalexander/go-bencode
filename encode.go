@@ -21,6 +21,20 @@ func NewEncoder(w io.Writer) *Encoder {
 	return &Encoder{b}
 }
 
+func (enc *Encoder) encodeString(v []byte) error {
+	length := strconv.Itoa(len(v))
+	if _, err := enc.b.Write([]byte(length)); err != nil {
+		return err
+	}
+	if err := enc.b.WriteByte(':'); err != nil {
+		return err
+	}
+	if _, err := enc.b.Write(v); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (enc *Encoder) encode(v interface{}) (err error) {
 	defer func() {
 		if err != nil {
@@ -32,16 +46,13 @@ func (enc *Encoder) encode(v interface{}) (err error) {
 	typ := val.Type()
 	kind := typ.Kind()
 	switch {
+	case kind == reflect.String:
+		data := []byte(v.(string))
+		if err := enc.encodeString(data); err != nil {
+			return err
+		}
 	case kind == reflect.Slice && typ.Elem().Kind() == reflect.Uint8:
-		data := v.([]byte)
-		length := strconv.Itoa(len(data))
-		if _, err := enc.b.Write([]byte(length)); err != nil {
-			return err
-		}
-		if err := enc.b.WriteByte(':'); err != nil {
-			return err
-		}
-		if _, err := enc.b.Write(data); err != nil {
+		if err := enc.encodeString(v.([]byte)); err != nil {
 			return err
 		}
 	case kind == reflect.Int:
