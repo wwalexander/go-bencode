@@ -24,7 +24,7 @@ func NewDecoder(r io.Reader) *Decoder {
 	return &Decoder{b}
 }
 
-func (dec *Decoder) decodeInteger(delim byte) (int, error) {
+func (dec *Decoder) decodeIntegerWithDelim(delim byte) (int, error) {
 	s, err := dec.b.ReadBytes(delim)
 	if err != nil {
 		return 0, err
@@ -38,7 +38,7 @@ func (dec *Decoder) decodeInteger(delim byte) (int, error) {
 }
 
 func (dec *Decoder) decodeString() ([]byte, error) {
-	length, err := dec.decodeInteger(':')
+	length, err := dec.decodeIntegerWithDelim(':')
 	if err != nil {
 		return nil, err
 	}
@@ -81,19 +81,27 @@ func (dec *Decoder) Decode(v interface{}) error {
 	val = val.Elem()
 	typ := val.Type()
 	kind := typ.Kind()
+	buf, err := dec.b.Peek(1)
+	if err != nil {
+		return err
+	}
 	switch {
-	case kind == reflect.Slice && typ.Elem().Kind() == reflect.Uint8:
-		s, err := dec.decodeString()
-		if err != nil {
-			return err
-		}
-		val.Set(reflect.ValueOf(s))
+	case kind == reflect.Interface && buf[0] >= '1' && buf[0] <= '9':
+		fallthrough
 	case kind == reflect.String:
 		s, err := dec.decodeString()
 		if err != nil {
 			return err
 		}
 		val.Set(reflect.ValueOf(string(s)))
+	case kind == reflect.Slice && typ.Elem().Kind() == reflect.Uint8:
+		s, err := dec.decodeString()
+		if err != nil {
+			return err
+		}
+		val.Set(reflect.ValueOf(s))
+	case kind == reflect.Interface && buf[0] == 'i':
+		fallthrough
 	case kind == reflect.Int:
 		fallthrough
 	case kind == reflect.Int8:
@@ -120,11 +128,13 @@ func (dec *Decoder) Decode(v interface{}) error {
 		} else if !ok {
 			return errors.New("cannot unmarshal into Go value of type int")
 		}
-		n, err := dec.decodeInteger('e')
+		n, err := dec.decodeIntegerWithDelim('e')
 		if err != nil {
 			return err
 		}
 		val.Set(reflect.ValueOf(n).Convert(val.Type()))
+	case kind == reflect.Interface && buf[0] == 'l':
+		fallthrough
 	case kind == reflect.Slice:
 		if ok, err := dec.next('l'); err != nil {
 			return err
@@ -147,6 +157,8 @@ func (dec *Decoder) Decode(v interface{}) error {
 			}
 			val.Set(reflect.Append(val, elem.Elem()))
 		}
+	case kind == reflect.Interface && buf[0] == 'd':
+		fallthrough
 	case kind == reflect.Struct:
 		if ok, err := dec.next('d'); err != nil {
 			return err
